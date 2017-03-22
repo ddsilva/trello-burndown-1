@@ -1,6 +1,5 @@
 'use strict';
 
-
 import dotenv from 'dotenv';
 import express from 'express';
 import expressHbs from 'express-handlebars';
@@ -11,7 +10,6 @@ import errors from './app/config/errors';
 dotenv.config();
 
 const app = express();
-
 const hbs = expressHbs.create({
     layoutsDir: 'views/layouts/',
     defaultLayout: 'main',
@@ -20,11 +18,10 @@ const hbs = expressHbs.create({
 
 app.engine('handlebars', hbs.engine);
 app.set('view engine', 'handlebars');
-
 app.set('port', process.env.PORT || 3000);
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-
 app.use('/', routes);
 
 app.listen(app.get('port'), function() {
