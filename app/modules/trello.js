@@ -1,59 +1,92 @@
 import TrelloApi from 'node-trello';
-import Lists from '../config/trello';
+import TrelloCollection from '../config/trello';
+import { first, find, filter, some, range, map, uniq, flatten } from 'lodash';
+import moment from 'moment';
+
+const settings = find(TrelloCollection, { name: 'settings'});
+const done  = find(TrelloCollection, { name: 'done'});
 
 class Trello {
-    constructor() { 
+    constructor(response) { 
         this.trello = new TrelloApi(
             process.env.TRELLO_KEY, 
             process.env.TRELLO_TOKEN
         );
+        this.response = response;
     };
 
     getLists() { 
-        return this.trello.get('/board/58c824490fc0684259d9f180/lists', {
-            cards: 'open'
-        }, (err, data) => console.log(data));
+        return new Promise((resolve, reject) => {
+            this.trello.get('1/boards/58c824490fc0684259d9f180/lists', {
+                cards: 'open'
+            }, (err, res) => resolve(res));
+        });
     };
 
     getComments() {
-        return this.trello.get(`/list/${Lists.settings.id}/actions`, {
-            filter: 'commentCard'
-        }, (err, data) => console.log(data));
+        return new Promise((resolve, reject) => {
+            this.trello.get(`1/lists/${settings.id}/actions`, {
+                filter: 'commentCard'
+            }, (err, res) => resolve(res));
+        });
     };
 
-    get() {
-        let lists = this.getLists();
-        let comments = this.getComments();
+    async get() {
+        const lists = await this.getLists();
+        const comments = await this.getComments();
 
-        // const options = {
-        //     sprintStartDay: lists.find(item => item.id == Lists.settings.id).cards[0].due,
-        // };
+        const listsFiltred = filterLists(lists);
+        const doneCards = find(lists, { id: done.id }).cards;
 
-        // lists = filterLists(lists);
+        const sprint = {
+            startDay: first(
+                find(lists, { id: settings.id }).cards
+            ).due,
+            totalDays: Number(first(comments).data.text),
+            totalPoints: getTotalPoints(map(listsFiltred, 'cards')),
+            totalTasks: listsFiltred.reduce((prev, curr) => {
+                return prev + curr.cards.length
+            }, 0)
+        };
 
-        // Object.assign(options, {
-        //     sprintDays: comments[0][0].data.text,
-        //     initialSprintTaks: lists.reduce((prev, curr) => {
-        //     return prev + curr.cards.length
-        //     }, 0)
-        // });
+        sprint.sprintTasks = getSprintTasks(doneCards, sprint.startDay)
 
-        console.log(lists, comments, this.trello);
+        this.response.send(sprint);
     };
 };
 
 const filterLists = lists => {
-    return lists.filter(item => {
-        let valid = true;
-        Object.keys(Lists).forEach((value) => {
-            let object = Lists[value];
+    const collections = filter(TrelloCollection, 'exclude');
+    return filter(lists, (item) => !some(collections, { id: item.id }));
+};
 
-            if (object.exclude && object.id === item.id) {
-                valid = false
-            }
-        });
-        return valid;
-    });
+const getSprintTasks = (doneCards, sprintStartDay) => {
+    let sprintTasks = [];
+    const currentDay = moment();
+    const startDay = moment(sprintStartDay);
+    
+    while(startDay < currentDay) {
+        if (![0, 6].includes(startDay.day())) {
+            sprintTasks.push({
+                'done': filter(doneCards, (card) => {
+                    return startDay.format('YYYY-MM-DD') == moment(card.dateLastActivity).format('YYYY-MM-DD');
+                }).length
+            });
+        }
+
+        startDay.add(1, 'days');
+    }
+    return sprintTasks;
+};
+
+const getTotalPoints = cards => { 
+  const cardNames = flatten(map(cards, items => {
+    return map(items, item => item.name.split(' ').slice(0,2).join(' '));
+  }));
+
+  return uniq(cardNames).reduce((prev, curr) => {
+      return prev + Number(curr.split(' ')[1].replace(/[\(\)]/g, ''));
+  }, 0);
 };
 
 module.exports = Trello;
