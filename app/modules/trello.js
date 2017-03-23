@@ -36,20 +36,23 @@ class Trello {
         const comments = await this.getComments();
 
         const listsFiltred = filterLists(lists);
+
         const doneCards = find(lists, { id: done.id }).cards;
+        const cards = map(filter(listsFiltred, item => item.id != done.id), 'cards');
 
         const sprint = {
             startDay: first(
                 find(lists, { id: settings.id }).cards
             ).due,
             totalDays: Number(first(comments).data.text),
-            totalPoints: getTotalPoints(map(listsFiltred, 'cards')),
+            totalPoints: getTotalPoints(cards),
             totalTasks: listsFiltred.reduce((prev, curr) => {
                 return prev + curr.cards.length
             }, 0)
         };
 
-        sprint.sprintTasks = getSprintTasks(doneCards, sprint.startDay)
+        sprint.sprintTasks = getSprintTasks(doneCards, sprint.startDay, cards).sprintTasks;
+        sprint.sprintIssues = getSprintTasks(doneCards, sprint.startDay, cards).sprintIssues;
 
         this.response.send(sprint);
     };
@@ -60,10 +63,15 @@ const filterLists = lists => {
     return filter(lists, (item) => !some(collections, { id: item.id }));
 };
 
-const getSprintTasks = (doneCards, sprintStartDay) => {
-    let sprintTasks = [];
+
+const getSprintTasks = (doneCards, sprintStartDay, otherCards) => {
+    let sprintTasks = [], sprintIssues = [];
     const currentDay = moment();
     const startDay = moment(sprintStartDay);
+
+    const otherCardNames = flatten(map(otherCards, items => {
+        return map(items, item => item.name.split(' ').slice(0,2).join(' '));
+    }));
     
     while(startDay < currentDay) {
         if (![0, 6].includes(startDay.day())) {
@@ -72,11 +80,30 @@ const getSprintTasks = (doneCards, sprintStartDay) => {
                     return startDay.format('YYYY-MM-DD') == moment(card.dateLastActivity).format('YYYY-MM-DD');
                 }).length
             });
+
+
+            let issues = filter(doneCards, (card) => { 
+                const doneCardName = card.name.split(' ').slice(0,2).join(' ');
+                if(!otherCardNames.includes(doneCardName)) {
+                    return startDay.format('YYYY-MM-DD') == moment(card.dateLastActivity).format('YYYY-MM-DD');
+                }
+            });
+            
+            if (issues.length > 0) {
+                sprintIssues.push({
+                    'done': uniq(map(issues, item => item.name.split(' ').slice(0,2).join(' '))).length
+                });
+            } else {
+                sprintIssues.push({ 'done': 0 });
+            }
         }
 
         startDay.add(1, 'days');
     }
-    return sprintTasks;
+    return { 
+        'sprintTasks': sprintTasks,
+        'sprintIssues': sprintIssues
+    };
 };
 
 const getTotalPoints = cards => { 
