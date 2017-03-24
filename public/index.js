@@ -1,6 +1,10 @@
 import $ from 'jquery';
-import Burndown from './burndown'
+import Chart from 'chart.js';
+import Burndown from './burndown';
 
 $.get('/trello/info').done(data => {
-  new Burndown(data);
+  data.tasksDOMId  = 'myTasksChart';
+  data.issuesDOMId = 'myIssuesChart';
+
+  return new Burndown(data);
 })

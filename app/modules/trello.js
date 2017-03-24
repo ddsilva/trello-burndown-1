@@ -9,8 +9,8 @@ const done  = find(TrelloCollection, { name: 'done'});
 class Trello {
     constructor(response) {
         this.trello = new TrelloApi(
-            `88b6445e11c3b19a7b21d5b535e8f298`,
-            `57ff9e1f39eb026c684d351b42c169966f85efc1f45ed797b3031858da884d51`
+            process.env.TRELLO_KEY,
+            process.env.TRELLO_TOKEN
         );
         this.response = response;
     };
