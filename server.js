@@ -23,6 +23,7 @@ app.set('port', process.env.PORT || 3000);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use('/', routes);
+app.use('/public', express.static('dist'));
 
 app.listen(app.get('port'), function() {
   console.log(`Running on port ${app.get('port')}`);

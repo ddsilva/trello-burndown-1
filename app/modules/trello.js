@@ -7,15 +7,15 @@ const settings = find(TrelloCollection, { name: 'settings'});
 const done  = find(TrelloCollection, { name: 'done'});
 
 class Trello {
-    constructor(response) { 
+    constructor(response) {
         this.trello = new TrelloApi(
-            process.env.TRELLO_KEY, 
-            process.env.TRELLO_TOKEN
+            `88b6445e11c3b19a7b21d5b535e8f298`,
+            `57ff9e1f39eb026c684d351b42c169966f85efc1f45ed797b3031858da884d51`
         );
         this.response = response;
     };
 
-    getLists() { 
+    getLists() {
         return new Promise((resolve, reject) => {
             this.trello.get('1/boards/58c824490fc0684259d9f180/lists', {
                 cards: 'open'
@@ -72,7 +72,7 @@ const getSprintTasks = (doneCards, sprintStartDay, otherCards) => {
     const otherCardNames = flatten(map(otherCards, items => {
         return map(items, item => item.name.split(' ').slice(0,2).join(' '));
     }));
-    
+
     while(startDay < currentDay) {
         if (![0, 6].includes(startDay.day())) {
             sprintTasks.push({
@@ -82,13 +82,13 @@ const getSprintTasks = (doneCards, sprintStartDay, otherCards) => {
             });
 
 
-            let issues = filter(doneCards, (card) => { 
+            let issues = filter(doneCards, (card) => {
                 const doneCardName = card.name.split(' ').slice(0,2).join(' ');
                 if(!otherCardNames.includes(doneCardName)) {
                     return startDay.format('YYYY-MM-DD') == moment(card.dateLastActivity).format('YYYY-MM-DD');
                 }
             });
-            
+
             if (issues.length > 0) {
                 sprintIssues.push({
                     'done': uniq(map(issues, item => item.name.split(' ').slice(0,2).join(' '))).length
@@ -100,13 +100,13 @@ const getSprintTasks = (doneCards, sprintStartDay, otherCards) => {
 
         startDay.add(1, 'days');
     }
-    return { 
+    return {
         'sprintTasks': sprintTasks,
         'sprintIssues': sprintIssues
     };
 };
 
-const getTotalPoints = cards => { 
+const getTotalPoints = cards => {
   const cardNames = flatten(map(cards, items => {
     return map(items, item => item.name.split(' ').slice(0,2).join(' '));
   }));
